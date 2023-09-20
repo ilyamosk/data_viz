@@ -1,0 +1,548 @@
+---
+title: 'GGPLOT: BAR CHARTS'
+author: "By Ilya Moskalenko & Sita Manasa Susarla"
+date: '2023'
+output:
+  html_document:
+    toc: true
+    df_print: paged
+---
+
+***
+
+
+\newpage
+
+Welcome to Week 3!
+
+In this module, we will explore how to create basic and advanced barcharts and modify them to be publication-worthy using ggplot.
+
+After this module, students should be able to:
+
+- Create basic graphs using ggplot
+
+- Use advanced ggplot aesthetics to customize graphs
+
+- Apply concepts of effective graphical design to produce professional graphs
+
+Helpful Resources:
+
+- ggplot Cheatsheet [link](https://raw.githubusercontent.com/rstudio/cheatsheets/main/data-visualization.pdf)
+
+- R Brewer Palettes [link](https://r-graph-gallery.com/38-rcolorbrewers-palettes.html)
+
+- HEX Color Palette Generator [link](https://coolors.co/)
+
+- ggthemes List [link](https://ggplot2.tidyverse.org/reference/ggtheme.html)
+
+\newpage
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load libraries, warning=FALSE, message= FALSE}
+# It is good practice to always load your libraries first!
+library(ggplot2)
+library(ggthemes)
+library(dplyr)
+library(magrittr)
+```
+
+\newpage
+
+# PART 0
+
+***
+
+## 0.1: DATA SET BACKGROUND INFO
+
+For this module, we will use data from a case-control study of esophageal cancer in Ille-et-Vilaine, France using a built-in dataset in R.
+
+There are 5 variables:
+
+agegp: Age group
+
+alcgp: Alcohol consumption in grams/day
+
+tobgp: Tobacco consumption in grams/day
+
+ncases: Number of cases
+
+ncontrols: Number of controls
+
+```{r load data}
+# Load data
+# NOTE: How is loading this built-in data different from loading other datasets? 
+data(esoph)
+
+# Let's view the first couple of lines of the data
+# NOTE: What do you notice about the types of variables?
+head(esoph)
+```
+
+\newpage 
+
+## 0.2: DATA PREPROCESSING
+
+Based on the data, I am curious to see which age group has the most cases of esophageal cancer. So, to find that out, we need to first clean and subset our data.
+
+```{r clean data}
+# The 'agg_agegp' data frame will contain summarized information about esophageal cancer cases by age group
+agg_agegp <- esoph %>% 
+  # Group the data by the 'agegp' variable
+  group_by(agegp) %>% 
+  # Summarize the grouped data by calculating the total number of cases (ncases) for each age group
+  summarize(totalcases = sum(ncases))
+# Display or return the 'agg_agegp' data frame, which now contains the summarized information
+agg_agegp
+
+```
+
+We have the total number of cases by age group, but it may be helpful to also get a percentage of the total cases between age groups.
+
+```{r}
+# Add a new column 'perc_cases' to the data frame
+  # Calculate the percentage of total cases for each age group
+  # The calculation is done by dividing 'totalcases' by the sum of all 'totalcases' values, and then multiplying by 100
+agg_agegp <- agg_agegp %>%
+  mutate(perc_cases = 100*totalcases/sum(totalcases))
+```
+
+To get a better understanding of this trend, let's visualize this data using a barchart.
+
+\newpage
+
+# PART 1: BAR PLOT BASIC ANATOMY
+
+***
+
+## 1.1: SETTING UP INITIAL GGPLOT LAYER
+
+```{r}
+# Initialize the 'barchart' object and specify the data frame 'agg_agegp' as the data source
+# Use 'aes()' to define the aesthetics (mapping of variables to visual properties)
+barchart <- ggplot(data = agg_agegp, # Selecting the data that will be fed into the plot
+                   aes(x = agegp, # 'x=agegp' maps the 'agegp' variable to the x-axis
+                       y = perc_cases)) + # 'y=perc_cases' maps the 'perc_cases' variable to the y-axis
+
+  # Add a bar layer to the plot using 'geom_bar()'
+  # 'stat="identity"' means the heights of the bars correspond to the actual data values
+  geom_bar(stat = "identity") # 'geom_bar' specifies that this will be a bar chart
+
+# Display the bar chart
+barchart
+```
+
+Alright, so we have a basic barchart! What correlations do you see between the cases of esophageal cancer and age group? We will now move into various aspects of the graph you may want to modify to make it more presentable to an audience.
+
+\newpage
+
+## 1.2: TITLES, CAPTIONS, AXES LABELS, FONTS
+
+```{r}
+# Add custom labels to the 'barchart' 
+barchart + 
+  labs(title = "Percentage of Cases of Esophageal Cancer", # Title
+       subtitle = "by Age Group", # Subtitle
+       x = "Age Group", # X-axis label
+       y = "% Esophageal Cancer Cases", # Y-axis label
+       caption = "Source: Cases of Esophageal Cancer from 'esoph' dataset") # Caption
+
+# Add text labels above each bar using the 'perc_cases' values as labels
+barchart + 
+  geom_text(aes(label = perc_cases), # Add text labels to each bar 
+                vjust = -0.5, # Adjust vertical placement (- is up, + is down)
+                size = 3, # Adjust text size
+                color = "black", # Set color
+                family = "sans" # Set font
+            ) 
+```
+
+\newpage
+
+# PART 2: COLOR
+
+***
+
+## 2.1: HOW TO ADD COLOR
+
+```{r}
+# One color for all bars
+barchart + 
+  geom_bar(stat="identity", # Directly plots provided data values as bar heights, without transformation
+           fill="lightblue") # Filling in the bars
+
+# Outline and fill in the bars
+barchart + 
+  geom_bar(stat = "identity", 
+           fill = "lightblue",
+           color = "black") # Outlining the bars
+
+# Color by Group (More useful for stacked barcharts which are covered later in this module)
+
+# Use default colors:
+barchart2 <- ggplot(agg_agegp, aes(x=agegp, y=perc_cases, fill = agegp)) +
+  geom_bar(stat="identity")
+barchart2
+
+# We can also manually select the fill colors:
+   # (1) HEX Colors
+     barchart2 + scale_fill_manual(values=c("#28262C", "#998FC7", "#D4C2FC",
+                                          "#F9F5FF", "#624CAB", "#14248A"))
+
+    # (2) Color Palettes (i.e. Brewer's)
+      barchart2 + scale_fill_brewer(palette="Dark2")
+      
+  # A useful use case is to emphasize one of the groups
+      barchart2 + scale_fill_manual(values=c("darkgrey", "darkgrey", "darkgrey",
+                                          "darkred", "darkgrey", "darkgrey"))
+```
+
+\newpage
+
+## 2.2: COLOR USE CASES
+
+### 2.2.1: Color to depict quantity (When you want the emphasis to be on a continuous value)    
+
+```{r}
+
+barchart_continuous <- ggplot(agg_agegp, aes(x = agegp, 
+                                   y = perc_cases)) + # Key is to fill with continuous value
+  geom_bar(stat = "identity", aes(fill = perc_cases)) +
+  scale_fill_gradient(low = "darkgrey", high = "darkred")  # Apply color gradient
+barchart_continuous
+```
+
+
+```{r}
+# Color to highlight a specific group (When you want to emphasize one of the groups)
+barchart2 + 
+  scale_fill_manual(values=c("darkgrey", "darkgrey", "darkgrey",
+                                          "darkred", "darkgrey", "darkgrey"))
+```
+
+
+```{r}
+# Color to distinguish between groups (Will become more useful in Stacked & Dodged bar plots!!)
+barchart2 + 
+  scale_fill_brewer(palette="Spectral") # Use 'qualitative' or 'diverging' palettes for categorical data
+```
+
+\newpage
+
+## 2.3: LEGEND
+
+```{r message = FALSE, warning = FALSE}
+# To modify the Legend:
+barchart2 +
+  scale_fill_brewer(palette="Accent") + 
+  scale_fill_discrete(name = "Age Group") + # Change name of Legend
+  theme(legend.position="bottom") # Change position of legend (left, right, top, bottom)
+
+barchart2 +
+  scale_fill_brewer(palette = "Accent") + 
+  scale_fill_discrete(name = "Age Group") + # Change name of Legend
+  theme(legend.position = "bottom", 
+        legend.justification = "right") # Another directioning position for combinations (top & right)
+
+```
+
+\newpage
+
+## 2.4: GRIDLINES/BACKGROUND
+
+```{r}
+# Remove Vertical Lines
+barchart2 +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) 
+  
+# Remove Horizontal Lines
+barchart2 +
+    theme(panel.grid.major.y = element_blank(),
+          panel.grid.minor.y = element_blank()) 
+
+# Remove both the lines and background
+barchart2 +
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(), 
+          panel.background = element_blank(), 
+          axis.line = element_line(colour = "black"))
+
+# Add Custom background color
+barchart2 +
+    theme(panel.background = element_rect(fill = "#F9F5FF",
+                                          size = 2, linetype = "solid"))
+
+# Use ggthemes to add/remove grid lines, change color of background, and change plot themes
+
+# Example 1: Minimalist Theme
+barchart2 + 
+  theme_tufte()
+
+# Example 2: Inverse Gray Theme
+barchart2 + 
+  theme_igray()
+
+# Example 3: Dark Theme
+barchart2 + 
+  theme_solarized(light = FALSE)
+```
+
+
+TRY-IT-YOURSELF: We have individually gone through the methods to customize and elevate our plots. So, to produce a final, professional barchart, can you combine all of the modifications (i.e. Captions/Labels, Color, and Legend) above into a single call?
+
+```{r, fig.width=7}
+#Type your answer here
+custom_barchart <- ggplot(data=agg_agegp, aes(x=agegp, y=perc_cases, fill= agegp)) +
+  geom_bar(stat="identity") +
+  ggtitle("Percentage Esophageal Cancer Cases",
+          subtitle = "by Age Group") +
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5)) +
+  labs(x = "Age Group", 
+       y = "Percent Esophageal Cancer Cases (%)",
+       caption = "Source: Cases of Esophageal Cancer from 'esoph' dataset") +
+  guides(fill=guide_legend(title="Age Group")) +
+  geom_text(aes(label = perc_cases), vjust = -0.50, size = 3.4, color = "black") + 
+  scale_fill_brewer(palette="Dark2") +
+  theme(panel.grid.major = element_blank(), # Same as theme_classic()
+          panel.grid.minor = element_blank(), 
+          panel.background = element_blank(), 
+          axis.line = element_line(colour = "black"))
+custom_barchart
+```
+
+\newpage
+
+# PART 3: TYPES OF BARCHARTS
+
+***
+
+Alright, so we have explored how to modify regular barcharts to make them more professional and presentable.
+
+In this part of the module, we will dive into creating more complex barcharts such as grouped and stacked barcharts.
+
+\newpage
+
+# 3.1: STACKED BARCHART
+
+Earlier, we compared the number and percent of cases of esophageal cancer by age group and noticed that some age groups tended to have a higher percentage of cases than others. To explore this relationship more, let's look at how the number of cases are broken down by each age group's alcohol consumption.
+
+```{r}
+stacked_bc <- ggplot(esoph, aes(x = agegp, y = ncases, fill = alcgp)) + 
+    geom_bar(stat = "identity")
+
+stacked_bc
+```
+
+What do you notice about the distribution of alcohol consumption across the age groups? 
+
+Currently, our stacked barchart is using the default colors which may or may not look great or fit with our theme.
+
+\newpage
+
+## 3.1.1: COLOR
+
+```{r}
+# Color Palettes
+stacked_bc + scale_fill_brewer() #Default Brewer color palette
+
+# Can specify the palette by palette name or number
+stacked_bc + scale_fill_brewer(palette = 12) #OR
+stacked_bc + scale_fill_brewer(palette = "Purples")
+
+# Manually Choose Colors for what you are stratifying by (i.e. alcgp)
+stacked_bc + scale_fill_manual(values=c("#78CDD7", "#44A1A0", "#247B7B", "#0D5C63"))
+```
+
+\newpage
+
+## 3.1.2: BORDER
+
+```{r}
+# Add Border and Color
+ggplot(esoph, aes(x = agegp, y = ncases, fill = alcgp)) +
+  geom_bar(stat = "identity", color = "black") + #Specify Border by "color ="
+  scale_fill_brewer(palette = "Pastel1")
+# The borders look a bit weird due to the way the data is represented in our dataset 
+# (We have the same alcgp category duplicated multiple times for each agegp)
+
+# To get the proper border, we will need to clean our data such that 
+# the alcgp category is not repeated for each agegp 
+alc_cases <- esoph %>%
+  select(agegp, alcgp, ncases) %>%
+  group_by(agegp, alcgp) %>%
+  summarize(total_cases = sum(ncases))
+# Compare this new clean data with the original dataset. 
+# What do you notice about the ways agegp, alcgp, and ncases are represented?
+
+barchart3 <- ggplot(alc_cases, aes(x = agegp, y = total_cases, fill = alcgp)) +
+  geom_bar(stat = "identity",color = "black") +
+  scale_fill_brewer(palette = "Pastel1")
+
+barchart3
+# Now the borders look good!
+```
+
+\newpage
+
+## 3.1.3: LABELS
+
+```{r}
+ggplot(alc_cases, aes(x = agegp, y = total_cases, fill = alcgp, 
+                      label = total_cases)) + # Need to specify the label 
+  geom_bar(stat = "identity") +
+  geom_text(position = position_stack(vjust = 0.5), size = 3, color = "#ffffff") 
+# need to mention position = position_stack(); vjust = 0.5 is for centering
+
+# In this case, this barchart is showing the values of 0, which we don't want, 
+# so we can modify our code
+ggplot(alc_cases, aes(x=agegp, y=total_cases, fill = alcgp, 
+                      label = total_cases)) + 
+  geom_bar(stat="identity")+
+  geom_text(data=subset(alc_cases, total_cases != 0), 
+            position = position_stack(vjust = 0.5), size=3, color = "#ffffff")
+```
+
+\newpage
+
+## 3.1.4: LEGEND
+
+```{r message = FALSE, warning = FALSE}
+# Change the Category Labels
+barchart3 +
+  guides(fill=guide_legend( # 'Guide legend' allows to manually input a legend
+    title="Alcohol Use \n    (g/day)")) + # '\n' adds a new line and then add spaces to center '(g/day)'
+  scale_fill_discrete(labels = c("<= 39", "40-79", "80-119", ">= 120"))
+```
+
+\newpage
+
+# 3.2: DODGED BARCHART
+
+Sometimes a stacked barchart may not be easy to understand or interpret. Well, there is a solution to that: Dodged Barcharts!
+
+Dodged barcharts are very similar to stacked barcharts, with very minor changes in code syntax. We will look at grouped barcharts with our previous example of alcohol consumption.
+
+```{r}
+dodged_bc <- ggplot(alc_cases, aes(x = agegp, y = total_cases, fill = alcgp)) +
+  geom_bar(stat = "identity", 
+           position = "dodge")  # Need to specify position = "dodge" to group bars next to each other
+dodged_bc
+```
+
+## 3.2.1: COLOR (Redundant Maybe Delete? Move somewhere else?)
+
+```{r}
+# Change color the same way you did for stacked barcharts 
+# with either scale_fill_manual or scale_fill_brewer
+
+dodged_bc + scale_fill_brewer(palette = "PiYG")
+```
+
+
+## 3.2.2: LABELS (Redundant Maybe Delete? Move somewhere else?)
+
+```{r}
+# If you would like to include the empty bar space along with the values
+dodged_bc +
+  geom_text(aes(label = total_cases), position = position_dodge(0.9), 
+            vjust = -0.5, size = 3, color = "black")
+
+# If you do not want values of 0 to show up on the graph
+dodged_bc +
+  geom_text(data=subset(alc_cases, total_cases != 0), 
+            aes(label = total_cases), position = position_dodge(0.9), 
+            vjust = 2, size = 3, color = "#ffffff")
+# Notice that this graph above shows the empty bar space that we don't want and 
+# therefore some of the numbers are not formatted on the bar. 
+# To fix this, we need to remove any rows where the total_cases is 0 
+# from our dataset and plot again
+
+alc_cases2 <- alc_cases %>% 
+  filter(total_cases > 0)
+
+ggplot(alc_cases2, aes(x = agegp, y = total_cases, fill = alcgp)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = total_cases), position = position_dodge(0.9), 
+            vjust = 1, size = 3, color = "#ffffff") # Much better!
+```
+
+The code for everything else for dodged barcharts is similar to what has been previously covered in this module.
+
+
+TRY-IT-YOURSELF: You have already created a stacked barchart for tobacco consumption. Similarly, now that we have gone through grouped barcharts, produce a professional grouped barchart that shows the number of cases of esophageal cancer by each age group's tobacco consumption.
+
+```{r}
+#Type your answer here
+
+```
+
+\newpage
+
+## 3.3: FACETED BAR CHARTS (Find different data to demonstrate this)
+
+
+
+## 3.4: HORIZONTAL BAR CHART
+
+```{r}
+# Flipping the axis of the barchart
+barchart3 +
+  coord_flip() # Mention this to swap the x and y axes
+```
+
+## (MOVE THIS AND WORK ON EVERYTHING BEYOND HERE)
+
+```{r}
+# Reordering the bars in ascending/descending order
+ggplot(esoph,aes(x = reorder(agegp,-ncases), y = ncases, fill = alcgp)) +
+  geom_bar(stat ="identity")
+# Syntax: x = reorder(X variable,+/-Y variable); + = ascending, - = descending
+# NOTE: It does not make sense to reorder the bars in this context 
+# as the age group categories are out of order
+
+# Reverse the stacking of the bars
+ggplot(esoph,aes(x = agegp, y = ncases, fill = alcgp)) +
+  geom_bar(stat ="identity", position = position_stack(reverse = TRUE))
+```
+
+TRY-IT-YOURSELF: Now that we have reviewed stacked barcharts, it's time for you to create and modify one! Produce a professional stacked barchart that shows the number of cases of esophageal cancer by each age group's tobacco consumption.
+
+```{r}
+# Type your answer here
+
+```
+
+\newpage
+
+
+
+
+
+
+SUMMARY/RECAP:
+
+- We have reviewed how to customize ggplots for publications or presentation to a professional audience
+
+- We explored modifications to color, labels, appearance, and legends
+
+- You should be able to produce a polished barchart that is publication-worthy (run the code below for a professional barchart)
+
+```{r, echo = FALSE}
+ec_tobacco <- esoph %>% 
+  group_by(tobgp) %>% 
+  summarize(totalcases = sum(ncases)) %>% 
+  mutate(perc_case = 100*totalcases/sum(totalcases))
+
+ggplot(data=ec_tobacco, aes(x=tobgp, y=perc_case)) +
+  geom_bar(stat="identity", color = "black", fill = "aquamarine3") +
+  labs(title = "Percentage of Cases of Esophageal Cancer", 
+       subtitle = "by Tobacco Consumption",
+       x = "Tobacco Consumption (g/day)", 
+       y = "% Esophageal Cancer Cases") +
+  theme_classic(base_family = "serif", base_size = 12) +
+  theme(plot.title=element_text(hjust=0.5),
+        plot.subtitle=element_text(hjust=0.5))
+```
